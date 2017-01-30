@@ -3,6 +3,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using Functional.Maybe;
+using static System.Text.Encoding;
 
 namespace Netus {
     internal static class Server {
@@ -30,9 +32,12 @@ namespace Netus {
         }
 
         private static void ReadClient(IAsyncResult ar) {
-            var res = (State) ar.AsyncState;
-            var result = res.Socket.EndReceive(ar);
-            Console.WriteLine(Encoding.ASCII.GetString(res.Buffer, 0, result));
+            var res = ((State) ar.AsyncState).ToMaybe()
+                .Select(state => new Tuple<State, int>(state, state.Socket.EndReceive(ar)))
+                .Select(tuple => ASCII.GetString(tuple.Item1.Buffer, 0, tuple.Item2));
+
+
+            Console.WriteLine(res);
         }
 
         private class State {
