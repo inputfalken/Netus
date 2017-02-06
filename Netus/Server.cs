@@ -32,13 +32,19 @@ namespace Netus {
         }
 
         private static void ReadClient(IAsyncResult ar) {
-            var res = ((State) ar.AsyncState).ToMaybe()
-                .Select(state => new Tuple<State, int>(state, state.Socket.EndReceive(ar)))
-                .Select(tuple => ASCII.GetString(tuple.Item1.Buffer, 0, tuple.Item2));
+            var arAsyncState = (State) ar.AsyncState;
+            var res = arAsyncState.ToMaybe()
+                .Select(s => ASCII.GetString(s.Buffer, 0, s.Socket.EndReceive(ar)))  // Message
+                .Select(s => s.Replace(Environment.NewLine, string.Empty));
 
+            if (res.HasValue) {
+                MessageRecieved?.Invoke(res.Value);
+            }
 
-            Console.WriteLine(res);
+            arAsyncState.Socket.BeginReceive(arAsyncState.Buffer, 0, BufferSize, 0, ReadClient, arAsyncState);
         }
+
+        public static event Action<string> MessageRecieved;
 
         private class State {
             public Socket Socket { get; }
