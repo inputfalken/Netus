@@ -24,11 +24,13 @@ namespace Netus {
             var client = listener.EndAcceptTcpClient(res);
             Console.WriteLine("Client connected.");
             var buffer = ASCII.GetBytes("Welcome");
-            client.GetStream().BeginWrite(buffer, 0, buffer.Length, Callback, res);
+            client.GetStream().BeginWrite(buffer, 0, buffer.Length, WriteToClientCallback, client);
         }
 
-        private static void Callback(IAsyncResult ar) {
-            Console.WriteLine(ar.AsyncState);
+
+        private static void WriteToClientCallback(IAsyncResult ar) {
+            var arAsyncState = (TcpClient) ar.AsyncState;
+            arAsyncState.GetStream().EndWrite(ar);
         }
 
 
