@@ -1,40 +1,42 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
+using System.Threading;
+using static System.Text.Encoding;
 
 namespace Netus {
     internal class TcpListenerServer {
-        private static TcpListener _listener;
+        private static readonly AutoResetEvent AutoResetEvent = new AutoResetEvent(false);
 
         public static void StartAsynchronus() {
-            _listener = new TcpListener(IPAddress.Any, 23000);
-            _listener.Start();
-            Console.WriteLine("Listening...");
-            StartAccept();
+            var listener = new TcpListener(IPAddress.Any, 23000);
+            listener.Start();
+            while (true) {
+                listener.BeginAcceptTcpClient(HandleAsyncConnection, listener);
+                AutoResetEvent.WaitOne();
+            }
         }
 
-        private static void StartAccept() {
-            _listener.BeginAcceptTcpClient(HandleAsyncConnection, _listener);
-        }
 
         private static void HandleAsyncConnection(IAsyncResult res) {
-            StartAccept(); //listen for new connections again
-            var client = _listener.EndAcceptTcpClient(res);
-
-            var buffer = Encoding.ASCII.GetBytes("hello");
-            var networkStream = client.GetStream();
-            networkStream.Write(buffer, 0, buffer.Length);
+            AutoResetEvent.Set();
+            var listener = (TcpListener) res.AsyncState;
+            var client = listener.EndAcceptTcpClient(res);
+            Console.WriteLine("Client connected.");
+            var buffer = ASCII.GetBytes("Welcome");
+            client.GetStream().BeginWrite(buffer, 0, buffer.Length, Callback, res);
         }
+
+        private static void Callback(IAsyncResult ar) {
+            Console.WriteLine(ar.AsyncState);
+        }
+
 
         public static void StartSynchronus() {
             const int port = 23000;
             var server = new TcpListener(IPAddress.Any, port);
 
             try {
-                // Set the TcpListener on port 13000.
-
-
                 // Start listening for client requests.
                 server.Start();
 
@@ -58,13 +60,13 @@ namespace Netus {
                     // Loop to receive all the data sent by the client.
                     while ((i = stream.Read(bytes, 0, bytes.Length)) != 0) {
                         // Translate data bytes to a ASCII string.
-                        var data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
+                        var data = ASCII.GetString(bytes, 0, i);
                         Console.WriteLine("Received: {0}", data);
 
                         // Process the data sent by the client.
                         data = data.ToUpper();
 
-                        var msg = System.Text.Encoding.ASCII.GetBytes($"Server Responds: The lenght of the word {data} is {data.Length}");
+                        var msg = ASCII.GetBytes($"Server Responds: The lenght of the word {data} is {data.Length}");
 
                         // Send back a response.
                         stream.Write(msg, 0, msg.Length);
