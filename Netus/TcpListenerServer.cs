@@ -1,10 +1,33 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace Netus {
     internal class TcpListenerServer {
-        public static void Start() {
+        private static TcpListener _listener;
+
+        public static void StartAsynchronus() {
+            _listener = new TcpListener(IPAddress.Any, 23000);
+            _listener.Start();
+            Console.WriteLine("Listening...");
+            StartAccept();
+        }
+
+        private static void StartAccept() {
+            _listener.BeginAcceptTcpClient(HandleAsyncConnection, _listener);
+        }
+
+        private static void HandleAsyncConnection(IAsyncResult res) {
+            StartAccept(); //listen for new connections again
+            var client = _listener.EndAcceptTcpClient(res);
+
+            var buffer = Encoding.ASCII.GetBytes("hello");
+            var networkStream = client.GetStream();
+            networkStream.Write(buffer, 0, buffer.Length);
+        }
+
+        public static void StartSynchronus() {
             const int port = 23000;
             var server = new TcpListener(IPAddress.Any, port);
 
@@ -59,8 +82,6 @@ namespace Netus {
                 // Stop listening for new clients.
                 server.Stop();
             }
-
-
             Console.WriteLine("\nHit enter to continue...");
             Console.Read();
         }
