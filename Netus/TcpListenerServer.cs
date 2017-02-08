@@ -30,10 +30,23 @@ namespace Netus {
             var clientStream = client.GetStream();
             await WriteMessageAsync(clientStream, "Welcome please enter your name\n");
             var userName = await RegisterUser(client);
-            await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
+            await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}\n");
+            await clientStream.FlushAsync();
+            var streamReader = new StreamReader(clientStream);
+            while (true) {
+                var readLineAsync = await streamReader.ReadLineAsync();
+                var message = $"{userName}: {readLineAsync}\n";
+                Console.WriteLine(message);
+                var enumerable = UserNameToClient
+                    .Where(pair => !pair.Value.Equals(userName))
+                    .Select(pair => pair.Key.GetStream());
+                foreach (var networkStream in enumerable)
+                    await WriteMessageAsync(networkStream, message);
+            }
         }
 
         public static event Action ClientConnects;
+
         private static async Task<string> RegisterUser(TcpClient client) {
             var streamReader = new StreamReader(client.GetStream());
             var userName = await streamReader.ReadLineAsync();
