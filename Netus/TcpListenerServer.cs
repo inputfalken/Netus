@@ -26,13 +26,14 @@ namespace Netus {
         private static async void HandleClientAsync(Task<TcpClient> clientTask) {
             AutoResetEvent.Set();
             var client = await clientTask;
-            Console.WriteLine("Client connected.");
+            ClientConnects?.Invoke();
             var clientStream = client.GetStream();
             await WriteMessageAsync(clientStream, "Welcome please enter your name\n");
             var userName = await RegisterUser(client);
             await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
         }
 
+        public static event Action ClientConnects;
         private static async Task<string> RegisterUser(TcpClient client) {
             var streamReader = new StreamReader(client.GetStream());
             var userName = await streamReader.ReadLineAsync();

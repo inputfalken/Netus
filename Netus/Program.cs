@@ -8,6 +8,7 @@ namespace Netus {
     internal class Program {
         public static void Main(string[] args) {
             new Thread(TcpListenerServer.StartAsynchronus).Start();
+            TcpListenerServer.ClientConnects += () => Console.WriteLine("Client Connected");
         }
 
 
