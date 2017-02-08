@@ -1,12 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using static System.Text.Encoding;
 
 namespace Netus {
     internal class TcpListenerServer {
         private static readonly AutoResetEvent AutoResetEvent = new AutoResetEvent(false);
+
+        private static readonly List<TcpClient> Clients = new List<TcpClient>();
 
         public static void StartAsynchronus() {
             var listener = new TcpListener(IPAddress.Any, 23000);
@@ -18,21 +23,30 @@ namespace Netus {
         }
 
 
-        private static void HandleAsyncConnection(IAsyncResult res) {
+        private static async void HandleAsyncConnection(IAsyncResult res) {
             AutoResetEvent.Set();
             var listener = (TcpListener) res.AsyncState;
             var client = listener.EndAcceptTcpClient(res);
             Console.WriteLine("Client connected.");
-            var buffer = ASCII.GetBytes("Welcome");
-            client.GetStream().BeginWrite(buffer, 0, buffer.Length, WriteToClientCallback, client);
+            Clients.Add(client);
+            var networkStream = client.GetStream();
+            WriteMessageAsync(networkStream, "Welcome");
+            ReadMessage();
         }
 
-
-        private static void WriteToClientCallback(IAsyncResult ar) {
-            var arAsyncState = (TcpClient) ar.AsyncState;
-            arAsyncState.GetStream().EndWrite(ar);
+        private static async void WriteMessageAsync(Stream stream, string message) {
+            var buffer = ASCII.GetBytes(message);
+            await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
+        private static async void ReadMessage() {
+            foreach (var tcpClient in Clients) {
+                var streamReader = new StreamReader(tcpClient.GetStream());
+                var s = await streamReader.ReadLineAsync();
+                Console.WriteLine(s);
+            }
+
+        }
 
         public static void StartSynchronus() {
             const int port = 23000;
