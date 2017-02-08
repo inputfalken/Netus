@@ -32,7 +32,7 @@ namespace Netus {
             var clientStream = client.GetStream();
             await GreetUser(clientStream); // After use is greeted do the following
             var userName = await RegisterUser(client);
-            WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
+            await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
         }
 
         private static async Task<string> RegisterUser(TcpClient client) {
@@ -47,7 +47,7 @@ namespace Netus {
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
-        private static async void WriteMessageAsync(Stream stream, string message) {
+        private static async Task WriteMessageAsync(Stream stream, string message) {
             var buffer = ASCII.GetBytes(message);
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
