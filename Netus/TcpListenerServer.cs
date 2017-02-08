@@ -30,7 +30,7 @@ namespace Netus {
             var client = listener.EndAcceptTcpClient(res);
             Console.WriteLine("Client connected.");
             var clientStream = client.GetStream();
-            await GreetUser(clientStream); // After use is greeted do the following
+            await GreetUser(clientStream); // After user is greeted do the following.
             var userName = await RegisterUser(client);
             await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
         }
