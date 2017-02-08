@@ -18,16 +18,14 @@ namespace Netus {
             var listener = new TcpListener(IPAddress.Any, 23000);
             listener.Start();
             while (true) {
-                listener.BeginAcceptTcpClient(HandleAsyncConnection, listener);
+                HandleClientAsync(listener.AcceptTcpClientAsync());
                 AutoResetEvent.WaitOne();
             }
         }
 
-
-        private static async void HandleAsyncConnection(IAsyncResult res) {
+        private static async void HandleClientAsync(Task<TcpClient> clientTask) {
             AutoResetEvent.Set();
-            var listener = (TcpListener) res.AsyncState;
-            var client = listener.EndAcceptTcpClient(res);
+            var client = await clientTask;
             Console.WriteLine("Client connected.");
             var clientStream = client.GetStream();
             await GreetUser(clientStream); // After user is greeted do the following.
