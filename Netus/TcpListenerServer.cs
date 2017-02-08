@@ -12,7 +12,7 @@ namespace Netus {
     internal class TcpListenerServer {
         private static readonly AutoResetEvent AutoResetEvent = new AutoResetEvent(false);
 
-        private static readonly Dictionary<string, TcpClient> UserNameToClient = new Dictionary<string, TcpClient>();
+        private static readonly Dictionary<TcpClient, string> UserNameToClient = new Dictionary<TcpClient, string>();
 
         public static void StartAsynchronus() {
             var listener = new TcpListener(IPAddress.Any, 23000);
@@ -37,7 +37,7 @@ namespace Netus {
         private static async Task<string> RegisterUser(TcpClient client) {
             var streamReader = new StreamReader(client.GetStream());
             var userName = await streamReader.ReadLineAsync();
-            UserNameToClient.Add(userName, client);
+            UserNameToClient.Add(client, userName);
             return userName;
         }
 
