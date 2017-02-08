@@ -12,7 +12,7 @@ namespace Netus {
     internal class TcpListenerServer {
         private static readonly AutoResetEvent AutoResetEvent = new AutoResetEvent(false);
 
-        private static readonly List<TcpClient> Clients = new List<TcpClient>();
+        private static readonly Dictionary<string, TcpClient> UserNameToClient = new Dictionary<string, TcpClient>();
 
         public static void StartAsynchronus() {
             var listener = new TcpListener(IPAddress.Any, 23000);
@@ -29,14 +29,22 @@ namespace Netus {
             var listener = (TcpListener) res.AsyncState;
             var client = listener.EndAcceptTcpClient(res);
             Console.WriteLine("Client connected.");
-            Clients.Add(client);
-            var networkStream = client.GetStream();
-            WriteMessageAsync(networkStream, "Welcome");
+            var clientStream = client.GetStream();
+            await GreetUser(clientStream); // After use is greeted do the following
+            var userName = await RegisterUser(client);
+            WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
+        }
 
-            foreach (var message in Messages()) {
-                var msg = await message;
-                Console.WriteLine(msg);
-            }
+        private static async Task<string> RegisterUser(TcpClient client) {
+            var streamReader = new StreamReader(client.GetStream());
+            var userName = await streamReader.ReadLineAsync();
+            UserNameToClient.Add(userName, client);
+            return userName;
+        }
+
+        private static async Task GreetUser(Stream stream) {
+            var buffer = ASCII.GetBytes("Welcome please enter your name\n");
+            await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
         private static async void WriteMessageAsync(Stream stream, string message) {
@@ -44,10 +52,6 @@ namespace Netus {
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
-        private static IEnumerable<Task<string>> Messages() => Clients
-            .Select(client => client.GetStream())
-            .Select(stream => new StreamReader(stream))
-            .Select(reader => reader.ReadLineAsync());
 
         public static void StartSynchronus() {
             const int port = 23000;
