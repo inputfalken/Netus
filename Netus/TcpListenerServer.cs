@@ -28,7 +28,7 @@ namespace Netus {
             var client = await clientTask;
             Console.WriteLine("Client connected.");
             var clientStream = client.GetStream();
-            await GreetUser(clientStream); // After user is greeted do the following.
+            await WriteMessageAsync(clientStream, "Welcome please enter your name\n");
             var userName = await RegisterUser(client);
             await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
         }
@@ -40,10 +40,6 @@ namespace Netus {
             return userName;
         }
 
-        private static async Task GreetUser(Stream stream) {
-            var buffer = ASCII.GetBytes("Welcome please enter your name\n");
-            await stream.WriteAsync(buffer, 0, buffer.Length);
-        }
 
         private static async Task WriteMessageAsync(Stream stream, string message) {
             var buffer = ASCII.GetBytes(message);
