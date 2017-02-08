@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -31,7 +32,11 @@ namespace Netus {
             Clients.Add(client);
             var networkStream = client.GetStream();
             WriteMessageAsync(networkStream, "Welcome");
-            ReadMessage();
+
+            foreach (var message in Messages()) {
+                var msg = await message;
+                Console.WriteLine(msg);
+            }
         }
 
         private static async void WriteMessageAsync(Stream stream, string message) {
@@ -39,14 +44,10 @@ namespace Netus {
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
-        private static async void ReadMessage() {
-            foreach (var tcpClient in Clients) {
-                var streamReader = new StreamReader(tcpClient.GetStream());
-                var s = await streamReader.ReadLineAsync();
-                Console.WriteLine(s);
-            }
-
-        }
+        private static IEnumerable<Task<string>> Messages() => Clients
+            .Select(client => client.GetStream())
+            .Select(stream => new StreamReader(stream))
+            .Select(reader => reader.ReadLineAsync());
 
         public static void StartSynchronus() {
             const int port = 23000;
