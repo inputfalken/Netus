@@ -18,7 +18,7 @@ namespace Netus {
             var listener = new TcpListener(IPAddress.Any, 23000);
             listener.Start();
             while (true) {
-                HandleClientAsync(listener.AcceptTcpClientAsync());
+                HandleClientAsync(Task.Run(() => listener.AcceptTcpClientAsync()));
                 AutoResetEvent.WaitOne();
             }
         }
