@@ -12,7 +12,7 @@ namespace Netus {
     internal class TcpListenerServer {
         private static readonly AutoResetEvent AutoResetEvent = new AutoResetEvent(false);
 
-        private static readonly Dictionary<TcpClient, string> UserNameToClient = new Dictionary<TcpClient, string>();
+        private static readonly Dictionary<TcpClient, string> ClientToUserName = new Dictionary<TcpClient, string>();
 
         public static void StartAsynchronus() {
             var listener = new TcpListener(IPAddress.Any, 23000);
@@ -30,14 +30,20 @@ namespace Netus {
             var clientStream = client.GetStream();
             await WriteMessageAsync(clientStream, "Welcome please enter your name\n");
             var userName = await RegisterUser(client);
+            var flushTask = clientStream.FlushAsync();
             await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}\n");
-            await clientStream.FlushAsync();
-            var streamReader = new StreamReader(clientStream);
+            await flushTask;
+            ChatSession(client);
+        }
+
+        private static async void ChatSession(TcpClient client) {
+            var streamReader = new StreamReader(client.GetStream());
+            var userName = ClientToUserName[client];
             while (true) {
                 var readLineAsync = await streamReader.ReadLineAsync();
                 var message = $"{userName}: {readLineAsync}\n";
                 ClientMessage?.Invoke(message);
-                var clientsMessaged = UserNameToClient
+                var clientsMessaged = ClientToUserName
                     .Where(pair => !pair.Value.Equals(userName))
                     .Select(pair => pair.Key.GetStream())
                     .Select(stream => WriteMessageAsync(stream, message));
@@ -51,7 +57,7 @@ namespace Netus {
         private static async Task<string> RegisterUser(TcpClient client) {
             var streamReader = new StreamReader(client.GetStream());
             var userName = await streamReader.ReadLineAsync();
-            UserNameToClient.Add(client, userName);
+            ClientToUserName.Add(client, userName);
             return userName;
         }
 
