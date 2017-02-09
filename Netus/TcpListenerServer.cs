@@ -29,10 +29,8 @@ namespace Netus {
             var userName = await RegisterUserAsync(client);
             var writeMessageAsync = WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
             var messageClientsExcept = MessageClientsExceptAsync(client, $"{userName} has joined the chat");
-            var flushAsync = clientStream.FlushAsync();
             await writeMessageAsync;
             await messageClientsExcept;
-            await flushAsync;
             await Task.Run(() => ChatSession(client));
         }
 
