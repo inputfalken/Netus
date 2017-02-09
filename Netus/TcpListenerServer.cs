@@ -13,7 +13,7 @@ namespace Netus {
     internal class TcpListenerServer {
         private static readonly Dictionary<TcpClient, string> ClientToUserName = new Dictionary<TcpClient, string>();
 
-        public static void StartAsynchronus() {
+        public static void Listen() {
             var listener = new TcpListener(IPAddress.Any, 23000);
             listener.Start();
             while (true) {
