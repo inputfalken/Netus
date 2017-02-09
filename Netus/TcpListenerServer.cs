@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Functional.Maybe;
 using static System.Text.Encoding;
 
 namespace Netus {
@@ -34,6 +35,14 @@ namespace Netus {
             await Task.Run(() => ChatSession(client));
         }
 
+        private static Maybe<string> Command(string command) {
+            switch (command) {
+                case "-members":
+                    return ClientToUserName.Select(pair => pair.Value).Aggregate((s, s1) => $"{s}\n{s1}").ToMaybe();
+                default:
+                    return Maybe<string>.Nothing;
+            }
+        }
 
         private static async Task MessageClientsExceptAsync(TcpClient client, string message) {
             var userName = ClientToUserName[client];
@@ -45,13 +54,20 @@ namespace Netus {
         }
 
         private static async Task ChatSession(TcpClient client) {
-            var streamReader = new StreamReader(client.GetStream());
+            var networkStream = client.GetStream();
+            var streamReader = new StreamReader(networkStream);
             var userName = ClientToUserName[client];
             while (true) {
                 var readLineAsync = await streamReader.ReadLineAsync();
-                var message = $"{userName}: {readLineAsync}";
-                ClientMessage?.Invoke(message);
-                await MessageClientsExceptAsync(client, message);
+                var command = Command(readLineAsync);
+                if (command.HasValue) {
+                    await WriteMessageAsync(networkStream, command.Value);
+                }
+                else {
+                    var message = $"{userName}: {readLineAsync}";
+                    ClientMessage?.Invoke(message);
+                    await MessageClientsExceptAsync(client, message);
+                }
             }
         }
 
