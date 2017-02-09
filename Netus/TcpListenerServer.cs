@@ -36,7 +36,7 @@ namespace Netus {
             while (true) {
                 var readLineAsync = await streamReader.ReadLineAsync();
                 var message = $"{userName}: {readLineAsync}\n";
-                Console.WriteLine(message);
+                ClientMessage?.Invoke(message);
                 var messageClients = UserNameToClient
                     .Where(pair => !pair.Value.Equals(userName))
                     .Select(pair => pair.Key.GetStream())
@@ -45,6 +45,7 @@ namespace Netus {
             }
         }
 
+        public static event Action<string> ClientMessage;
         public static event Action ClientConnects;
 
         private static async Task<string> RegisterUser(TcpClient client) {
