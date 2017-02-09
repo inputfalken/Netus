@@ -4,28 +4,24 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using static System.Text.Encoding;
 
 namespace Netus {
     internal class TcpListenerServer {
-        private static readonly AutoResetEvent AutoResetEvent = new AutoResetEvent(false);
-
         private static readonly Dictionary<TcpClient, string> ClientToUserName = new Dictionary<TcpClient, string>();
 
         public static void StartAsynchronus() {
             var listener = new TcpListener(IPAddress.Any, 23000);
             listener.Start();
             while (true) {
-                HandleClientAsync(Task.Run(() => listener.AcceptTcpClientAsync()));
-                AutoResetEvent.WaitOne();
+                HandleClient(listener.AcceptTcpClient());
             }
         }
 
-        private static async void HandleClientAsync(Task<TcpClient> clientTask) {
-            AutoResetEvent.Set();
-            var client = await clientTask;
+        private static async void HandleClient(TcpClient client) {
             var clientStream = client.GetStream();
             var welcomeMessageSent = WriteMessageAsync(clientStream, "Welcome please enter your name");
             ClientConnects?.Invoke();
