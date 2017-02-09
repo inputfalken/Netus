@@ -26,19 +26,22 @@ namespace Netus {
         private static async void HandleClientAsync(Task<TcpClient> clientTask) {
             AutoResetEvent.Set();
             var client = await clientTask;
-            ClientConnects?.Invoke();
             var clientStream = client.GetStream();
-            await WriteMessageAsync(clientStream, "Welcome please enter your name");
-            var userName = await RegisterUser(client);
-            var flushTask = clientStream.FlushAsync();
-            await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
-            await flushTask;
-            await MessageClientsExcept(client, $"{userName} has joined the chat");
+            var welcomeMessageSent = WriteMessageAsync(clientStream, "Welcome please enter your name");
+            ClientConnects?.Invoke();
+            await welcomeMessageSent;
+            var userName = await RegisterUserAsync(client);
+            var writeMessageAsync = WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
+            var messageClientsExcept = MessageClientsExceptAsync(client, $"{userName} has joined the chat");
+            var flushAsync = clientStream.FlushAsync();
+            await writeMessageAsync;
+            await messageClientsExcept;
+            await flushAsync;
             await Task.Run(() => ChatSession(client));
         }
 
 
-        private static async Task MessageClientsExcept(TcpClient client, string message) {
+        private static async Task MessageClientsExceptAsync(TcpClient client, string message) {
             var userName = ClientToUserName[client];
             var clientsMessaged = ClientToUserName
                 .Where(pair => !pair.Value.Equals(userName))
@@ -54,14 +57,14 @@ namespace Netus {
                 var readLineAsync = await streamReader.ReadLineAsync();
                 var message = $"{userName}: {readLineAsync}";
                 ClientMessage?.Invoke(message);
-                await MessageClientsExcept(client, message);
+                await MessageClientsExceptAsync(client, message);
             }
         }
 
         public static event Action<string> ClientMessage;
         public static event Action ClientConnects;
 
-        private static async Task<string> RegisterUser(TcpClient client) {
+        private static async Task<string> RegisterUserAsync(TcpClient client) {
             var streamReader = new StreamReader(client.GetStream());
             var userName = await streamReader.ReadLineAsync();
             ClientToUserName.Add(client, userName);
