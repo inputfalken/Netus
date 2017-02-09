@@ -28,14 +28,15 @@ namespace Netus {
             var client = await clientTask;
             ClientConnects?.Invoke();
             var clientStream = client.GetStream();
-            await WriteMessageAsync(clientStream, "Welcome please enter your name\n");
+            await WriteMessageAsync(clientStream, "Welcome please enter your name");
             var userName = await RegisterUser(client);
             var flushTask = clientStream.FlushAsync();
-            await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}\n");
+            await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
             await flushTask;
             await MessageClientsExcept(client, $"{userName} has joined the chat");
             ChatSession(client);
         }
+
 
         private static async Task MessageClientsExcept(TcpClient client, string message) {
             var userName = ClientToUserName[client];
@@ -51,7 +52,7 @@ namespace Netus {
             var userName = ClientToUserName[client];
             while (true) {
                 var readLineAsync = await streamReader.ReadLineAsync();
-                var message = $"{userName}: {readLineAsync}\n";
+                var message = $"{userName}: {readLineAsync}";
                 ClientMessage?.Invoke(message);
                 await MessageClientsExcept(client, message);
             }
@@ -69,7 +70,7 @@ namespace Netus {
 
 
         private static async Task WriteMessageAsync(Stream stream, string message) {
-            var buffer = ASCII.GetBytes(message);
+            var buffer = ASCII.GetBytes(message + Environment.NewLine);
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
     }
