@@ -36,6 +36,15 @@ namespace Netus {
             ChatSession(client);
         }
 
+        private static async Task MessageClientsExcept(TcpClient client, string message) {
+            var userName = ClientToUserName[client];
+            var clientsMessaged = ClientToUserName
+                .Where(pair => !pair.Value.Equals(userName))
+                .Select(pair => pair.Key.GetStream())
+                .Select(stream => WriteMessageAsync(stream, message));
+            await Task.WhenAll(clientsMessaged);
+        }
+
         private static async void ChatSession(TcpClient client) {
             var streamReader = new StreamReader(client.GetStream());
             var userName = ClientToUserName[client];
@@ -43,11 +52,7 @@ namespace Netus {
                 var readLineAsync = await streamReader.ReadLineAsync();
                 var message = $"{userName}: {readLineAsync}\n";
                 ClientMessage?.Invoke(message);
-                var clientsMessaged = ClientToUserName
-                    .Where(pair => !pair.Value.Equals(userName))
-                    .Select(pair => pair.Key.GetStream())
-                    .Select(stream => WriteMessageAsync(stream, message));
-                await Task.WhenAll(clientsMessaged);
+                await MessageClientsExcept(client, message);
             }
         }
 
