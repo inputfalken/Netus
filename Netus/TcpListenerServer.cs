@@ -34,7 +34,7 @@ namespace Netus {
             await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
             await flushTask;
             await MessageClientsExcept(client, $"{userName} has joined the chat");
-            ChatSession(client);
+            await Task.Run(() => ChatSession(client));
         }
 
 
@@ -47,7 +47,7 @@ namespace Netus {
             await Task.WhenAll(clientsMessaged);
         }
 
-        private static async void ChatSession(TcpClient client) {
+        private static async Task ChatSession(TcpClient client) {
             var streamReader = new StreamReader(client.GetStream());
             var userName = ClientToUserName[client];
             while (true) {
