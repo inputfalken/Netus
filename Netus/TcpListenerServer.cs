@@ -37,11 +37,11 @@ namespace Netus {
                 var readLineAsync = await streamReader.ReadLineAsync();
                 var message = $"{userName}: {readLineAsync}\n";
                 ClientMessage?.Invoke(message);
-                var messageClients = UserNameToClient
+                var clientsMessaged = UserNameToClient
                     .Where(pair => !pair.Value.Equals(userName))
                     .Select(pair => pair.Key.GetStream())
                     .Select(stream => WriteMessageAsync(stream, message));
-                await Task.WhenAll(messageClients);
+                await Task.WhenAll(clientsMessaged);
             }
         }
 
