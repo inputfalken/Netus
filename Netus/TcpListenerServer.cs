@@ -33,6 +33,7 @@ namespace Netus {
             var flushTask = clientStream.FlushAsync();
             await WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}\n");
             await flushTask;
+            await MessageClientsExcept(client, $"{userName} has joined the chat");
             ChatSession(client);
         }
 
