@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Functional.Maybe;
@@ -25,12 +24,12 @@ namespace Netus {
 
         private static async void HandleClient(TcpClient client) {
             var clientStream = client.GetStream();
-            var welcomeMessageSent = WriteMessageAsync(clientStream, $"Welcome please enter your name{Environment.NewLine}");
+            var welcomeMessageSent = WriteMessageAsync(clientStream, "Welcome please enter your name");
             ClientConnects?.Invoke();
             await welcomeMessageSent;
             var userName = await RegisterUserAsync(client);
-            var writeMessageAsync = WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}{Environment.NewLine}");
-            var messageClientsExcept = MessageClientsExceptAsync(client, $"{userName} has joined the chat{Environment.NewLine}");
+            var writeMessageAsync = WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
+            var messageClientsExcept = MessageClientsExceptAsync(client, $"{userName} has joined the chat");
             await writeMessageAsync;
             await messageClientsExcept;
             await Task.Run(() => ChatSession(client));
@@ -58,17 +57,17 @@ namespace Netus {
 
         private static async Task ChatSession(TcpClient client) {
             var networkStream = client.GetStream();
+            var streamReader = new StreamReader(networkStream);
             var userName = ClientToUserName[client];
-            var buffer = new byte[1024];
             while (true) {
-                if (await networkStream.ReadAsync(buffer, 0, buffer.Length) > 0) {
-                    var res = ASCII.GetString(buffer);
-                    var command = Command(res, client);
+                var readLineAsync = (await streamReader.ReadLineAsync()).ToMaybe();
+                if (readLineAsync.HasValue) {
+                    var command = Command(readLineAsync.Value, client);
                     if (command.HasValue) {
                         await WriteMessageAsync(networkStream, command.Value);
                     }
                     else {
-                        var message = $"{userName}: {res}";
+                        var message = $"{userName}: {readLineAsync}";
                         ClientMessage?.Invoke(message);
                         await MessageClientsExceptAsync(client, message);
                     }
@@ -97,7 +96,7 @@ namespace Netus {
 
 
         private static async Task WriteMessageAsync(Stream stream, string message) {
-            var buffer = ASCII.GetBytes(message);
+            var buffer = ASCII.GetBytes(message + Environment.NewLine);
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
     }
