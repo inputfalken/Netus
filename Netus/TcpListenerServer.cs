@@ -35,10 +35,12 @@ namespace Netus {
             await Task.Run(() => ChatSession(client));
         }
 
-        private static Maybe<string> Command(string command) {
+        private static Maybe<string> Command(string command, TcpClient client) {
             switch (command) {
                 case "-members":
                     return ClientToUserName.Select(pair => pair.Value).Aggregate((s, s1) => $"{s}\n{s1}").ToMaybe();
+                case "-whoami":
+                    return ClientToUserName[client].ToMaybe();
                 default:
                     return Maybe<string>.Nothing;
             }
@@ -59,7 +61,7 @@ namespace Netus {
             var userName = ClientToUserName[client];
             while (true) {
                 var readLineAsync = await streamReader.ReadLineAsync();
-                var command = Command(readLineAsync);
+                var command = Command(readLineAsync, client);
                 if (command.HasValue) {
                     await WriteMessageAsync(networkStream, command.Value);
                 }
