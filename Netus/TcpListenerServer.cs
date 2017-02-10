@@ -25,12 +25,12 @@ namespace Netus {
 
         private static async void HandleClient(TcpClient client) {
             var clientStream = client.GetStream();
-            var welcomeMessageSent = WriteMessageAsync(clientStream, "Welcome please enter your name");
+            var welcomeMessageSent = WriteMessageAsync(clientStream, $"Welcome please enter your name{Environment.NewLine}");
             ClientConnects?.Invoke();
             await welcomeMessageSent;
             var userName = await RegisterUserAsync(client);
-            var writeMessageAsync = WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
-            var messageClientsExcept = MessageClientsExceptAsync(client, $"{userName} has joined the chat");
+            var writeMessageAsync = WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}{Environment.NewLine}");
+            var messageClientsExcept = MessageClientsExceptAsync(client, $"{userName} has joined the chat{Environment.NewLine}");
             await writeMessageAsync;
             await messageClientsExcept;
             await Task.Run(() => ChatSession(client));
@@ -75,7 +75,7 @@ namespace Netus {
                 }
                 else {
                     ClientToUserName.Remove(client);
-                    var disconectMessage = $"Client: {userName} disconnected";
+                    var disconectMessage = $"Client: {userName} disconnected{Environment.NewLine}";
                     foreach (var keyValuePair in ClientToUserName)
                         await WriteMessageAsync(keyValuePair.Key.GetStream(), disconectMessage);
                     ClientDisconects?.Invoke(disconectMessage);
@@ -97,7 +97,7 @@ namespace Netus {
 
 
         private static async Task WriteMessageAsync(Stream stream, string message) {
-            var buffer = ASCII.GetBytes(message + Environment.NewLine);
+            var buffer = ASCII.GetBytes(message);
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
     }
