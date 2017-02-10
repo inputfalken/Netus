@@ -10,6 +10,7 @@ namespace Netus {
             new Thread(TcpListenerServer.Listen).Start();
             TcpListenerServer.ClientConnects += () => Console.WriteLine("Client Connected");
             TcpListenerServer.ClientMessage += Console.WriteLine;
+            TcpListenerServer.ClientDisconects += Console.WriteLine;
         }
     }
 }

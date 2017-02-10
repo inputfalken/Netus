@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Functional.Maybe;
@@ -57,24 +58,35 @@ namespace Netus {
 
         private static async Task ChatSession(TcpClient client) {
             var networkStream = client.GetStream();
-            var streamReader = new StreamReader(networkStream);
             var userName = ClientToUserName[client];
+            var buffer = new byte[1024];
             while (true) {
-                var readLineAsync = await streamReader.ReadLineAsync();
-                var command = Command(readLineAsync, client);
-                if (command.HasValue) {
-                    await WriteMessageAsync(networkStream, command.Value);
+                if (await networkStream.ReadAsync(buffer, 0, buffer.Length) > 0) {
+                    var res = ASCII.GetString(buffer);
+                    var command = Command(res, client);
+                    if (command.HasValue) {
+                        await WriteMessageAsync(networkStream, command.Value);
+                    }
+                    else {
+                        var message = $"{userName}: {res}";
+                        ClientMessage?.Invoke(message);
+                        await MessageClientsExceptAsync(client, message);
+                    }
                 }
                 else {
-                    var message = $"{userName}: {readLineAsync}";
-                    ClientMessage?.Invoke(message);
-                    await MessageClientsExceptAsync(client, message);
+                    ClientToUserName.Remove(client);
+                    var disconectMessage = $"Client: {userName} disconnected";
+                    foreach (var keyValuePair in ClientToUserName)
+                        await WriteMessageAsync(keyValuePair.Key.GetStream(), disconectMessage);
+                    ClientDisconects?.Invoke(disconectMessage);
+                    break;
                 }
             }
         }
 
         public static event Action<string> ClientMessage;
         public static event Action ClientConnects;
+        public static event Action<string> ClientDisconects;
 
         private static async Task<string> RegisterUserAsync(TcpClient client) {
             var streamReader = new StreamReader(client.GetStream());
