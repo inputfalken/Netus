@@ -22,11 +22,11 @@ namespace Netus {
 
         private static async void HandleClient(TcpClient client) {
             var clientStream = client.GetStream();
-            var welcomeMessageSent = WriteMessageAsync(clientStream, "Welcome please enter your name");
+            var welcomeMessageSent = MessageClient(clientStream, "Welcome please enter your name");
             ClientConnects?.Invoke("Client connected");
             await welcomeMessageSent;
             var userName = await RegisterUserAsync(client);
-            var writeMessageAsync = WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
+            var writeMessageAsync = MessageClient(clientStream, $"You have been sucessfully registered with the name: {userName}");
             var messageClientsExcept = MessageClientsExceptAsync(userName, $"{userName} has joined the chat");
             await writeMessageAsync;
             await messageClientsExcept;
@@ -48,7 +48,7 @@ namespace Netus {
             var clientsMessaged = UserNameToClient
                 .Where(pair => !pair.Key.Equals(userName))
                 .Select(pair => pair.Value.GetStream())
-                .Select(stream => WriteMessageAsync(stream, message));
+                .Select(stream => MessageClient(stream, message));
             await Task.WhenAll(clientsMessaged);
         }
 
@@ -57,20 +57,27 @@ namespace Netus {
             var streamReader = new StreamReader(stream);
             var connected = true;
             while (connected) {
-                (await streamReader.ReadLineAsync()).ToMaybe()
-                    .Match(message => Command(message, userName)
-                        .Match(async s => await WriteMessageAsync(stream, s),
-                            async () => {
-                                var messageWithUsername = $"{userName}: {message}";
-                                ClientMessage?.Invoke(messageWithUsername);
-                                await MessageClientsExceptAsync(userName, messageWithUsername);
-                            }), () => connected = false);
+                (await streamReader.ReadLineAsync())
+                    .ToMaybe()
+                    .Match(
+                        clientMessage => Command(clientMessage, userName)
+                            .Match(
+                                async cmdResponse => await MessageClient(cmdResponse, userName),
+                                async () => await MessageClients($"{userName}: {clientMessage}", userName)
+                            ),
+                        () => connected = false
+                    );
             }
 
             UserNameToClient.Remove(userName);
             var disconectMessage = $"Client: {userName} disconnected";
-            await Task.WhenAll(UserNameToClient.Select(pair => WriteMessageAsync(pair.Value.GetStream(), disconectMessage)));
+            await Task.WhenAll(UserNameToClient.Select(pair => MessageClient(pair.Value.GetStream(), disconectMessage)));
             ClientDisconects?.Invoke(disconectMessage);
+        }
+
+        private static async Task MessageClients(string message, string userName) {
+            ClientMessage?.Invoke(message);
+            await MessageClientsExceptAsync(userName, message);
         }
 
         public static event Action<string> ClientMessage;
@@ -85,7 +92,13 @@ namespace Netus {
         }
 
 
-        private static async Task WriteMessageAsync(Stream stream, string message) {
+        private static async Task MessageClient(Stream stream, string message) {
+            var buffer = ASCII.GetBytes(message + Environment.NewLine);
+            await stream.WriteAsync(buffer, 0, buffer.Length);
+        }
+
+        private static async Task MessageClient(string message, string userName) {
+            var stream = UserNameToClient[userName].GetStream();
             var buffer = ASCII.GetBytes(message + Environment.NewLine);
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
