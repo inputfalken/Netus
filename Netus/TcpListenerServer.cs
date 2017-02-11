@@ -71,9 +71,8 @@ namespace Netus {
                 }
                 else {
                     UserNameToClient.Remove(userName);
-                    var disconectMessage = $"Client: {userName} disconnected{Environment.NewLine}";
-                    foreach (var keyValuePair in UserNameToClient)
-                        await WriteMessageAsync(keyValuePair.Value.GetStream(), disconectMessage);
+                    var disconectMessage = $"Client: {userName} disconnected";
+                    await Task.WhenAll(UserNameToClient.Select(pair => WriteMessageAsync(pair.Value.GetStream(), disconectMessage)));
                     ClientDisconects?.Invoke(disconectMessage);
                     break;
                 }
