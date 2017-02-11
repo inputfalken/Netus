@@ -4,15 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 using Functional.Maybe;
 using static System.Text.Encoding;
 
 namespace Netus {
     internal class TcpListenerServer {
-        private static readonly Dictionary<TcpClient, string> ClientToUserName = new Dictionary<TcpClient, string>();
+        private static readonly Dictionary<string, TcpClient> UserNameToClient = new Dictionary<string, TcpClient>();
 
         public static void Listen() {
             var listener = new TcpListener(IPAddress.Any, 23000);
@@ -29,54 +27,53 @@ namespace Netus {
             await welcomeMessageSent;
             var userName = await RegisterUserAsync(client);
             var writeMessageAsync = WriteMessageAsync(clientStream, $"You have been sucessfully registered with the name: {userName}");
-            var messageClientsExcept = MessageClientsExceptAsync(client, $"{userName} has joined the chat");
+            var messageClientsExcept = MessageClientsExceptAsync(userName, $"{userName} has joined the chat");
             await writeMessageAsync;
             await messageClientsExcept;
-            await Task.Run(() => ChatSession(client));
+            await Task.Run(() => ChatSession(userName));
         }
 
-        private static Maybe<string> Command(string command, TcpClient client) {
+        private static Maybe<string> Command(string command, string userName) {
             switch (command) {
                 case "-members":
-                    return ClientToUserName.Select(pair => pair.Value).Aggregate((s, s1) => $"{s}\n{s1}").ToMaybe();
+                    return UserNameToClient.Select(pair => pair.Key).Aggregate((s, s1) => $"{s}\n{s1}").ToMaybe();
                 case "-whoami":
-                    return ClientToUserName[client].ToMaybe();
+                    return userName.ToMaybe();
                 default:
                     return Maybe<string>.Nothing;
             }
         }
 
-        private static async Task MessageClientsExceptAsync(TcpClient client, string message) {
-            var userName = ClientToUserName[client];
-            var clientsMessaged = ClientToUserName
-                .Where(pair => !pair.Value.Equals(userName))
-                .Select(pair => pair.Key.GetStream())
+        private static async Task MessageClientsExceptAsync(string userName, string message) {
+            var clientsMessaged = UserNameToClient
+                .Where(pair => !pair.Key.Equals(userName))
+                .Select(pair => pair.Value.GetStream())
                 .Select(stream => WriteMessageAsync(stream, message));
             await Task.WhenAll(clientsMessaged);
         }
 
-        private static async Task ChatSession(TcpClient client) {
+        private static async Task ChatSession(string userName) {
+            var client = UserNameToClient[userName];
             var networkStream = client.GetStream();
             var streamReader = new StreamReader(networkStream);
-            var userName = ClientToUserName[client];
             while (true) {
                 var message = (await streamReader.ReadLineAsync()).ToMaybe();
                 if (message.HasValue) {
-                    var command = message.SelectMany(s => Command(s, client));
+                    var command = message.SelectMany(s => Command(s, userName));
                     if (command.HasValue) {
                         await WriteMessageAsync(networkStream, command.Value);
                     }
                     else {
                         var messageWithUsername = $"{userName}: {message}";
                         ClientMessage?.Invoke(messageWithUsername);
-                        await MessageClientsExceptAsync(client, messageWithUsername);
+                        await MessageClientsExceptAsync(userName, messageWithUsername);
                     }
                 }
                 else {
-                    ClientToUserName.Remove(client);
+                    UserNameToClient.Remove(userName);
                     var disconectMessage = $"Client: {userName} disconnected{Environment.NewLine}";
-                    foreach (var keyValuePair in ClientToUserName)
-                        await WriteMessageAsync(keyValuePair.Key.GetStream(), disconectMessage);
+                    foreach (var keyValuePair in UserNameToClient)
+                        await WriteMessageAsync(keyValuePair.Value.GetStream(), disconectMessage);
                     ClientDisconects?.Invoke(disconectMessage);
                     break;
                 }
@@ -90,7 +87,7 @@ namespace Netus {
         private static async Task<string> RegisterUserAsync(TcpClient client) {
             var streamReader = new StreamReader(client.GetStream());
             var userName = await streamReader.ReadLineAsync();
-            ClientToUserName.Add(client, userName);
+            UserNameToClient.Add(userName, client);
             return userName;
         }
 
