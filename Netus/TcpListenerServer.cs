@@ -60,16 +60,16 @@ namespace Netus {
             var streamReader = new StreamReader(networkStream);
             var userName = ClientToUserName[client];
             while (true) {
-                var readLineAsync = (await streamReader.ReadLineAsync()).ToMaybe();
-                if (readLineAsync.HasValue) {
-                    var command = Command(readLineAsync.Value, client);
+                var message = (await streamReader.ReadLineAsync()).ToMaybe();
+                if (message.HasValue) {
+                    var command = message.SelectMany(s => Command(s, client));
                     if (command.HasValue) {
                         await WriteMessageAsync(networkStream, command.Value);
                     }
                     else {
-                        var message = $"{userName}: {readLineAsync}";
-                        ClientMessage?.Invoke(message);
-                        await MessageClientsExceptAsync(client, message);
+                        var messageWithUsername = $"{userName}: {message}";
+                        ClientMessage?.Invoke(messageWithUsername);
+                        await MessageClientsExceptAsync(client, messageWithUsername);
                     }
                 }
                 else {
