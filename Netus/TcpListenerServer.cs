@@ -53,20 +53,18 @@ namespace Netus {
         }
 
         private static async Task ChatSession(string userName) {
-            var networkStream = UserNameToClient[userName].GetStream();
-            var streamReader = new StreamReader(networkStream);
-            var message = (await streamReader.ReadLineAsync()).ToMaybe();
-            while (message.HasValue) {
-                var command = message.SelectMany(s => Command(s, userName));
-                if (command.HasValue) {
-                    await WriteMessageAsync(networkStream, command.Value);
-                }
-                else {
-                    var messageWithUsername = $"{userName}: {message}";
-                    ClientMessage?.Invoke(messageWithUsername);
-                    await MessageClientsExceptAsync(userName, messageWithUsername);
-                }
-                message = (await streamReader.ReadLineAsync()).ToMaybe();
+            var stream = UserNameToClient[userName].GetStream();
+            var streamReader = new StreamReader(stream);
+            var connected = true;
+            while (connected) {
+                (await streamReader.ReadLineAsync()).ToMaybe()
+                    .Match(message => Command(message, userName)
+                        .Match(async s => await WriteMessageAsync(stream, s),
+                            async () => {
+                                var messageWithUsername = $"{userName}: {message}";
+                                ClientMessage?.Invoke(messageWithUsername);
+                                await MessageClientsExceptAsync(userName, messageWithUsername);
+                            }), () => connected = false);
             }
 
             UserNameToClient.Remove(userName);
