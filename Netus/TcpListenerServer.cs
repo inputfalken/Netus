@@ -55,27 +55,24 @@ namespace Netus {
         private static async Task ChatSession(string userName) {
             var networkStream = UserNameToClient[userName].GetStream();
             var streamReader = new StreamReader(networkStream);
-            while (true) {
-                var message = (await streamReader.ReadLineAsync()).ToMaybe();
-                if (message.HasValue) {
-                    var command = message.SelectMany(s => Command(s, userName));
-                    if (command.HasValue) {
-                        await WriteMessageAsync(networkStream, command.Value);
-                    }
-                    else {
-                        var messageWithUsername = $"{userName}: {message}";
-                        ClientMessage?.Invoke(messageWithUsername);
-                        await MessageClientsExceptAsync(userName, messageWithUsername);
-                    }
+            var message = (await streamReader.ReadLineAsync()).ToMaybe();
+            while (message.HasValue) {
+                var command = message.SelectMany(s => Command(s, userName));
+                if (command.HasValue) {
+                    await WriteMessageAsync(networkStream, command.Value);
                 }
                 else {
-                    UserNameToClient.Remove(userName);
-                    var disconectMessage = $"Client: {userName} disconnected";
-                    await Task.WhenAll(UserNameToClient.Select(pair => WriteMessageAsync(pair.Value.GetStream(), disconectMessage)));
-                    ClientDisconects?.Invoke(disconectMessage);
-                    break;
+                    var messageWithUsername = $"{userName}: {message}";
+                    ClientMessage?.Invoke(messageWithUsername);
+                    await MessageClientsExceptAsync(userName, messageWithUsername);
                 }
+                message = (await streamReader.ReadLineAsync()).ToMaybe();
             }
+
+            UserNameToClient.Remove(userName);
+            var disconectMessage = $"Client: {userName} disconnected";
+            await Task.WhenAll(UserNameToClient.Select(pair => WriteMessageAsync(pair.Value.GetStream(), disconectMessage)));
+            ClientDisconects?.Invoke(disconectMessage);
         }
 
         public static event Action<string> ClientMessage;
