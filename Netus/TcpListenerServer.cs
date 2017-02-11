@@ -53,8 +53,7 @@ namespace Netus {
         }
 
         private static async Task ChatSession(string userName) {
-            var client = UserNameToClient[userName];
-            var networkStream = client.GetStream();
+            var networkStream = UserNameToClient[userName].GetStream();
             var streamReader = new StreamReader(networkStream);
             while (true) {
                 var message = (await streamReader.ReadLineAsync()).ToMaybe();
