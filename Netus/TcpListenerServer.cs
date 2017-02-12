@@ -57,16 +57,15 @@ namespace Netus {
             var streamReader = new StreamReader(stream);
             var connected = true;
             while (connected) {
-                (await streamReader.ReadLineAsync())
+                var maybe = (await streamReader.ReadLineAsync())
                     .ToMaybe()
-                    .Match(
-                        clientMessage => Command(clientMessage, userName)
-                            .Match(
-                                async cmdResponse => await MessageClient(cmdResponse, userName),
-                                async () => await MessageClients($"{userName}: {clientMessage}", userName)
-                            ),
-                        () => connected = false
+                    .Do(clientMessage => Command(clientMessage, userName)
+                        .Match(
+                            async cmdResponse => await MessageClient(cmdResponse, userName),
+                            async () => await MessageClients($"{userName}: {clientMessage}", userName)
+                        )
                     );
+                connected = maybe.HasValue;
             }
 
             UserNameToClient.Remove(userName);
