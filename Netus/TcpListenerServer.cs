@@ -53,21 +53,25 @@ namespace Netus {
         }
 
         private static async Task ChatSession(string userName) {
-            var stream = UserNameToClient[userName].GetStream();
-            var streamReader = new StreamReader(stream);
-            var connected = true;
-            while (connected) {
-                var maybe = (await streamReader.ReadLineAsync())
-                    .ToMaybe()
-                    .Do(clientMessage => Command(clientMessage, userName)
-                        .Match(
-                            async cmdResponse => await MessageClient(cmdResponse, userName),
-                            async () => await MessageClients($"{userName}: {clientMessage}", userName)
-                        )
-                    );
-                connected = maybe.HasValue;
+            using (var stream = UserNameToClient[userName].GetStream()) {
+                var streamReader = new StreamReader(stream);
+                var connected = true;
+                while (connected) {
+                    var maybe = (await streamReader.ReadLineAsync())
+                        .ToMaybe()
+                        .Do(clientMessage => Command(clientMessage, userName)
+                            .Match(
+                                async cmdResponse => await MessageClient(cmdResponse, userName),
+                                async () => await MessageClients($"{userName}: {clientMessage}", userName)
+                            )
+                        );
+                    connected = maybe.HasValue;
+                }
             }
+            await DisconnectClient(userName);
+        }
 
+        private static async Task DisconnectClient(string userName) {
             UserNameToClient.Remove(userName);
             var disconectMessage = $"Client: {userName} disconnected";
             await Task.WhenAll(UserNameToClient.Select(pair => MessageClient(pair.Value.GetStream(), disconectMessage)));
