@@ -9,7 +9,7 @@ using Functional.Maybe;
 using static System.Text.Encoding;
 
 namespace Netus {
-    internal class TcpListenerServer {
+    internal static class TcpListenerServer {
         private static readonly Dictionary<string, TcpClient> UserNameToClient = new Dictionary<string, TcpClient>();
 
         public static void Listen() {
@@ -20,17 +20,18 @@ namespace Netus {
             }
         }
 
-        private static async void HandleClient(TcpClient client) {
+        private static async Task HandleClient(TcpClient client) {
             var clientStream = client.GetStream();
-            var welcomeMessageSent = MessageClient(clientStream, "Welcome please enter your name");
+            var welcomeMessageSent = MessageClientAsync("Welcome please enter your name", clientStream);
             ClientConnects?.Invoke("Client connected");
             await welcomeMessageSent;
             var userName = await RegisterUserAsync(client);
-            var writeMessageAsync = MessageClient(clientStream, $"You have been sucessfully registered with the name: {userName}");
-            var messageClientsExcept = MessageClientsExceptAsync(userName, $"{userName} has joined the chat");
+            var writeMessageAsync = MessageClientAsync(
+                $"You have been sucessfully registered with the name: {userName}", clientStream);
+            var messageClientsExcept = MessageOtherClientsAsync($"{userName} has joined the chat", userName);
             await writeMessageAsync;
             await messageClientsExcept;
-            await Task.Run(() => ChatSession(userName));
+            await Task.Run(() => ChatSessionAsync(userName));
         }
 
         private static Maybe<string> Command(string command, string userName) {
@@ -44,44 +45,47 @@ namespace Netus {
             }
         }
 
-        private static async Task MessageClientsExceptAsync(string userName, string message) {
+        private static async Task MessageOtherClientsAsync(string message, string userName) {
             var clientsMessaged = UserNameToClient
                 .Where(pair => !pair.Key.Equals(userName))
                 .Select(pair => pair.Value.GetStream())
-                .Select(stream => MessageClient(stream, message));
+                .Select(stream => MessageClientAsync(message, stream));
             await Task.WhenAll(clientsMessaged);
+            ClientMessage?.Invoke(message);
         }
 
-        private static async Task ChatSession(string userName) {
+        private static async Task ChatSessionAsync(string userName) {
             using (var stream = UserNameToClient[userName].GetStream()) {
                 var streamReader = new StreamReader(stream);
                 var connected = true;
                 while (connected) {
-                    var maybe = (await streamReader.ReadLineAsync())
+                    connected = (await streamReader.ReadLineAsync())
                         .ToMaybe()
-                        .Do(clientMessage => Command(clientMessage, userName)
-                            .Match(
-                                async cmdResponse => await MessageClient(cmdResponse, userName),
-                                async () => await MessageClients($"{userName}: {clientMessage}", userName)
-                            )
-                        );
-                    connected = maybe.HasValue;
+                        .Do(message => ParseMessage(message, userName))
+                        .HasValue;
                 }
             }
-            await DisconnectClient(userName);
+            await DisconnectClientAsync(userName);
         }
 
-        private static async Task DisconnectClient(string userName) {
+        private static void ParseMessage(string line, string userName) {
+            Command(line, userName)
+                .Match(
+                    async cmdResponse => await MessageClientAsync(cmdResponse, userName),
+                    async () => await MessageOtherClientsAsync($"{userName}: {line}", userName)
+                );
+        }
+
+        private static async Task DisconnectClientAsync(string userName) {
+            var message = $"Client: {userName} disconnected";
             UserNameToClient.Remove(userName);
-            var disconectMessage = $"Client: {userName} disconnected";
-            await Task.WhenAll(UserNameToClient.Select(pair => MessageClient(pair.Value.GetStream(), disconectMessage)));
-            ClientDisconects?.Invoke(disconectMessage);
+            await AnnounceAsync(message);
+            ClientDisconects?.Invoke(message);
         }
 
-        private static async Task MessageClients(string message, string userName) {
-            ClientMessage?.Invoke(message);
-            await MessageClientsExceptAsync(userName, message);
-        }
+        private static async Task AnnounceAsync(string message) =>
+            await Task.WhenAll(UserNameToClient.Select(pair => MessageClientAsync(message, pair.Key)));
+
 
         public static event Action<string> ClientMessage;
         public static event Action<string> ClientConnects;
@@ -95,12 +99,12 @@ namespace Netus {
         }
 
 
-        private static async Task MessageClient(Stream stream, string message) {
+        private static async Task MessageClientAsync(string message, Stream stream) {
             var buffer = ASCII.GetBytes(message + Environment.NewLine);
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
-        private static async Task MessageClient(string message, string userName) {
+        private static async Task MessageClientAsync(string message, string userName) {
             var stream = UserNameToClient[userName].GetStream();
             var buffer = ASCII.GetBytes(message + Environment.NewLine);
             await stream.WriteAsync(buffer, 0, buffer.Length);
