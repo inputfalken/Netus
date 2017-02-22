@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Netus {
     internal class Program {
         public static void Main(string[] args) {
-            Task.Run(TcpListenerServer.Listen);
+            Task.Run(TcpListenerServer.StartAsync);
             TcpListenerServer.ClientConnects += Console.WriteLine;
             TcpListenerServer.ClientMessage += Console.WriteLine;
             TcpListenerServer.ClientDisconects += Console.WriteLine;

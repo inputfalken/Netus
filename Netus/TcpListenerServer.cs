@@ -12,8 +12,7 @@ namespace Netus {
     internal static class TcpListenerServer {
         private static readonly Dictionary<string, TcpClient> UserNameToClient = new Dictionary<string, TcpClient>();
 
-        public static void Listen() {
-            var listener = new TcpListener(IPAddress.Any, 23000);
+        public static Task StartAsync() {
             listener.Start();
             while (true) {
                 HandleClient(listener.AcceptTcpClient());
