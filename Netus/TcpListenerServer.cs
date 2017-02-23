@@ -13,6 +13,7 @@ namespace Netus {
         private static readonly Dictionary<string, TcpClient> UserNameToClient = new Dictionary<string, TcpClient>();
 
         public static Task StartAsync() {
+            var listener = new TcpListener(IPAddress.Parse("192.168.1.90"), 23000);
             listener.Start();
             while (true) {
                 HandleClient(listener.AcceptTcpClient());
@@ -27,7 +28,7 @@ namespace Netus {
             var userName = await RegisterUserAsync(client);
             var writeMessageAsync = MessageClientAsync(
                 $"You have been sucessfully registered with the name: {userName}", clientStream);
-            var messageClientsExcept = MessageOtherClientsAsync($"{userName} has joined the chat", userName);
+            var messageClientsExcept = MessageOtherClientsAsync(Protocol.MemberJoins(userName).ToString(), userName);
             await writeMessageAsync;
             await messageClientsExcept;
             await Task.Run(() => ChatSessionAsync(userName));
@@ -71,12 +72,12 @@ namespace Netus {
             Command(line, userName)
                 .Match(
                     async cmdResponse => await MessageClientAsync(cmdResponse, userName),
-                    async () => await MessageOtherClientsAsync($"{userName}: {line}", userName)
+                    async () => await MessageOtherClientsAsync($"{userName}: {Protocol.Message(line)}", userName)
                 );
         }
 
         private static async Task DisconnectClientAsync(string userName) {
-            var message = $"Client: {userName} disconnected";
+            var message = Protocol.MemberDisconnects(userName).ToString();
             UserNameToClient.Remove(userName);
             await AnnounceAsync(message);
             ClientDisconects?.Invoke(message);
