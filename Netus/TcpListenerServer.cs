@@ -72,7 +72,7 @@ namespace Netus {
             Command(line, userName)
                 .Match(
                     async cmdResponse => await MessageClientAsync(cmdResponse, userName),
-                    async () => await MessageOtherClientsAsync($"{userName}: {Protocol.Message(line)}", userName)
+                    async () => await MessageOtherClientsAsync($"{Protocol.Message(line, userName)}", userName)
                 );
         }
 
