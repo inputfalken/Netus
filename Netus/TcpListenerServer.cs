@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
 using Functional.Maybe;
+using netus_protocol;
 using static System.Text.Encoding;
 
 namespace Netus {
@@ -13,7 +15,7 @@ namespace Netus {
         private static readonly Dictionary<string, TcpClient> UserNameToClient = new Dictionary<string, TcpClient>();
 
         public static Task StartAsync() {
-            var listener = new TcpListener(IPAddress.Parse("192.168.1.90"), 23000);
+            var listener = new TcpListener(IPAddress.Parse("10.0.2.15"), 23000);
             listener.Start();
             while (true) {
                 HandleClient(listener.AcceptTcpClient());
